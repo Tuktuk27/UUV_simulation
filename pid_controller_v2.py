@@ -2,7 +2,7 @@ import numpy as np
 
 
 class PositionPID3D:
-    def __init__(self, Kp, Ki, Kd, dt, limits=None):
+    def __init__(self, Kp, Ki, Kd, Kff, dt, limits=None):
         """
         PID in x/y/z (inertial frame).
         
@@ -13,6 +13,7 @@ class PositionPID3D:
         self.Kp = np.array(Kp)
         self.Ki = np.array(Ki)
         self.Kd = np.array(Kd)
+        self.Kff = Kff
         self.dt = dt
 
         self.int_e = np.zeros(3)
@@ -39,7 +40,7 @@ class PositionPID3D:
                 self.Kp * e_pos
                 + self.Ki * self.int_e
                 + self.Kd * d_e
-                + ref_vel           # feed-forward in inertial
+                + self. Kff * ref_vel          # feed-forward in inertial
             )
 
             # 3) Rotate that command into the body frame
@@ -73,7 +74,7 @@ class PositionPID3D:
 
 
 class YawPID:
-    def __init__(self, Kp, Ki, Kd, dt, limits=None):
+    def __init__(self, Kp, Ki, Kd, Kff, dt, limits=None):
         """
         PID in yaw.
         
@@ -84,6 +85,7 @@ class YawPID:
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
+        self.Kff = Kff
         self.dt = dt
 
         self.int_e = 0.0
@@ -102,15 +104,17 @@ class YawPID:
     def compute(self, current_yaw, current_r, ref_yaw, ref_r=0.0):
         # 1) Error
         e = self.wrap(ref_yaw - current_yaw)
+        # e = ref_yaw - current_yaw
         self.int_e += e * self.dt
         d_e = (e - self.prev_e) / self.dt
         self.prev_e = e
 
         # 2) PID
-        M = self.Kp*e + self.Ki*self.int_e + self.Kd*d_e
-        M += ref_r  # yaw‐rate feed-forward
+        M_pid = self.Kp*e + self.Ki*self.int_e + self.Kd*d_e
+        M_ff   = self.Kff * ref_r      # choose Kff ~ 0.5–1.0
+        M_total = M_pid + M_ff
 
         # 3) Limits
         if self.min_m is not None:
-            M = float(np.clip(M, self.min_m, self.max_m))
-        return M
+            M_total = float(np.clip(M_total, self.min_m, self.max_m))
+        return M_total
