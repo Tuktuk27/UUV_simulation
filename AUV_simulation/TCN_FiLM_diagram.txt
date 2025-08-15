@@ -1,0 +1,28 @@
+graph TD
+    subgraph Inputs
+        A[Static AUV Parameters] --> B
+        C[Reference Trajectory and environmental distrubances] --> D
+    end
+
+    subgraph FiLM Generator
+        B[FiLM Generator] --> E1["γ₁, β₁"]
+        B --> E2["γ₂, β₂"]
+        B --> EN["γₙ, βₙ"]
+    end
+
+    subgraph Temporal Processing
+        D[Initial Conv1D] --> F1[TCN Residual Block 1]
+        F1 --> F2[TCN Residual Block 2]
+        F2 --> FN[TCN Residual Block N]
+    end
+
+    subgraph Output
+        FN --> G[Feature Vector at t=0]
+        G --> H[MLP Head]
+        H --> I[Control Commands]
+    end
+
+    E1 -.->|Modulate| F1
+    E2 -.->|Modulate| F2
+    EN -.->|Modulate| FN
+  
